@@ -49,7 +49,8 @@ object DiscClassifier {
     val gram_reg = "/home/chonger/data/ICLE/reg-grammar.txt"
 
     //val xmlF = "/home/chonger/data/ICC/xml/bparsed.xml"
-    val xmlF = unk_normal
+    val xmlF = "/home/chonger/data/Lang8/L8-bp-unk.xml"
+    //val xmlF = unk_normal
     val xml2 = "/home/chonger/data/ICC/xml/bparsed.xml"
     //val sampF = "/home/chonger/data/ICC/xml/debug-sampled.txt"
     
@@ -66,12 +67,12 @@ object DiscClassifier {
       println("TSG  - " + tsgA)
     } else {
       val pcfgex = new PCFGExtractor()
-      val pcfgI2 = pcfgex.featsBySent(xml2)
+      //val pcfgI2 = pcfgex.featsBySent(xml2)
       val pcfgI = pcfgex.featsBySent(xmlF)
       val pcfgC = pcfgex.classifier(.1)
-      println(pcfgC.crosscheck(pcfgI,pcfgI2))
-      //val pcfgA = pcfgC.crossVal(pcfgI,.8,10)
-      //println("PCFG - " + pcfgA)
+      //println(pcfgC.crosscheck(pcfgI,pcfgI2))
+      val pcfgA = pcfgC.crossVal(pcfgI,.8,10)
+      println("PCFG - " + pcfgA)
     }
 
     //

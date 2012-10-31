@@ -18,22 +18,24 @@ object GenClassifier {
   */
 
     val st = new CFGSymbolTable()
-    val dox1 = XMLDoc.read(fb + "icle_unk.xml",st)    
-    val dox2 = XMLDoc.read("/home/chonger/data/ICC/xml/bparsed.xml",st)    
+    //val dox1 = XMLDoc.read(fb + "icle_unk.xml",st)    
+    //val dox2 = XMLDoc.read("/home/chonger/data/ICC/xml/bparsed.xml",st)    
 
-    val cfgs = TreeTools.cfgSet((dox1.toList ::: dox2.toList).flatMap(_.text).toList).toList
-
+    val dox = XMLDoc.read("/home/chonger/data/Lang8/L8-bp-unk.xml",st)
+    val cfgs = TreeTools.cfgSet(dox.toList.flatMap(_.text).toList).toList
+    //val cfgs = TreeTools.cfgSet((dox1.toList ::: dox2.toList).flatMap(_.text).toList).toList
+/**
     val items1 = dox1.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
     val items2 = dox2.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
 
     println("CROSS : " + (crosscheck(items1,items2,st,cfgs) + crosscheck(items2,items1,st,cfgs))/2.0)
-
+*/
 /**
     dox.groupBy(_.getMeta("goldLabel")).foreach({
       case (l,ds) => println(l + " -> " + (0 /: ds)(_ + _.text.length))
     })
 */
-    //println("XVAL : " + pcfgXVAL(dox,st,TreeTools.cfgSet(dox.flatMap(_.text).toList).toList))
+    println("XVAL : " + pcfgXVAL(dox,st,TreeTools.cfgSet(dox.flatMap(_.text).toList).toList))
 
     //val ptsg = PTSG.read(fb + "reg-grammar.txt",st)    
     //println("XVAL : " + tsgXVAL(dox,st,ptsg))
@@ -114,11 +116,11 @@ object GenClassifier {
 
   def genXVAL(dox : Array[XMLDoc[ParseTree]], st : CFGSymbolTable, proc : (Array[List[ParseTree]]) => Array[PTSG]) = {
 
-    val folds = 10
+    val folds = 5
 
     val items = dox.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x)))
 
-    val fSize = (items.length * .2).toInt
+    val fSize = (items.length * .8).toInt
 
     println("TOTAL OF " + items.length)
     println("USING " + fSize  + " for training")
