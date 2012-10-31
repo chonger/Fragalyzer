@@ -205,14 +205,24 @@ object Crosscheck {
       accu = emIter()
     })
 
-
-
     def emIter() = {
       println("EM")
       var acc = 0.0
       var tot = 0.0
 
       val exC = Array.tabulate(nLabels)(x => new HashMap[ParseTree,Double]())
+
+      var lprob = 0.0
+
+      (data.map(_._2).zip(ptsgs)).foreach({
+        case (tz,pcfg) => {
+          tz.foreach({
+            case (l,tree) => {
+              lprob += math.log(pcfg.score(tree)) - math.log(pcfg.PT_BOOST)*tree.preterminals.length
+            }
+          })
+        }
+      })
 
       0.until(nLabels).foreach(i => {
         labeledC(i).foreach({
@@ -222,10 +232,15 @@ object Crosscheck {
       
       println("get unlabled expectations")
 
+      var used = 0
+
       unlabeled.par.foreach({
         case (l,t) => {
-          val probs = ptsgs.map(g => g.score(t) + dirichletP * math.pow(g.PT_BOOST,t.preterminals.length))
+          val probs = ptsgs.map(g => g.score(t))// + dirichletP * math.pow(g.PT_BOOST,t.preterminals.length))
+
           val totalP = (0.0 /: probs)(_ + _)
+
+          lprob += math.log(totalP) - math.log(ptsgs(0).PT_BOOST)*t.preterminals.length - math.log(nLabels)
 
           val best = ((0.0,-1)  /: 0.until(nLabels))((a,b) => {
             if(probs(b) > a._1)
@@ -241,17 +256,29 @@ object Crosscheck {
             acc += 1
           tot += 1
 
-          t.nonterminals.foreach(n => {
-            val rule = new ParseTree(n.rule.node())
-            synchronized {
-              0.until(nLabels).foreach(lI => {
-                val m = exC(lI)
-                m(rule) = m.getOrElse(rule,0.0) + probs(lI)/totalP
-              })
-            }
-          })
+          val hard = false
+
+          if(best._1/totalP > 0.0) {
+            used += 1
+            t.nonterminals.foreach(n => {
+              val rule = new ParseTree(n.rule.node())
+              synchronized {
+                if(hard) {
+                  val m = exC(best._2)
+                  m(rule) = m.getOrElse(rule,0.0) + probs(lI)/totalP
+                } else {
+                  0.until(nLabels).foreach(lI => {
+                    val m = exC(lI)
+                    m(rule) = m.getOrElse(rule,0.0) + probs(lI)/totalP
+                  })
+                }
+              }
+            })
+          }
         }
       })
+
+      println("USED : " + used + " out of " + unlabeled.length)
 
       val smooth = .00001
 
@@ -273,6 +300,7 @@ object Crosscheck {
         new PTSG(st,rules)
       })
 
+      println("LOGPROB : " + lprob)
       println("Curr ACC = " + acc/tot)
       acc/tot
     }
