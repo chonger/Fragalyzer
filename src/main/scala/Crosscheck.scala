@@ -39,12 +39,12 @@ object GenSemi {
 
 object Crosscheck {
 
-  val data1 = "/home/chonger/data/ICLE/icle_unk.xml"
-  val data2 = "/home/chonger/data/ICC/xml/bparsed.xml"
-  val data3 = "/home/chonger/data/Lang8/L8-bp-unk.xml"
+  val data1 = "/home/chonger/data/ICLE/icle_x.xml"
+  val data2 = "/home/chonger/data/ICC/xml/icci_x.xml"
+  val data3 = "/home/chonger/data/Lang8/L8-x.xml"
 
   def main(args : Array[String]) = {
-/**
+
     val d1 = disc(data1,data2)
     val d2 = disc(data2,data3)
     val d3 = disc(data1,data3)
@@ -52,12 +52,12 @@ object Crosscheck {
     val g1 = gen(data1,data2)
     val g2 = gen(data2,data3)
     val g3 = gen(data1,data3)
-*/
+/**
     val s1 = semi(data1,data2)
     val s2 = semi(data2,data3)
     val s3 = semi(data1,data3)
-
-  /**  
+*/
+  
     println("DISCRIMINATIVE")
     println("ICLE - ICCI  : " + d1)
     println("ICCI - LANG8 : " + d2)
@@ -67,12 +67,12 @@ object Crosscheck {
     println("ICLE - ICCI  : " + g1)
     println("ICCI - LANG8 : " + g2)
     println("ICLE - LANG8 : " + g3)
-*/
+/**
     println("SEMI")
     println("ICLE - ICCI  : " + s1)
     println("ICCI - LANG8 : " + s2)
     println("ICLE - LANG8 : " + s3)
-
+*/
   }
 
   def disc(d1 : String, d2 : String) = {
