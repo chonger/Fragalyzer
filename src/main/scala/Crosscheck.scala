@@ -265,7 +265,7 @@ object Crosscheck {
               synchronized {
                 if(hard) {
                   val m = exC(best._2)
-                  m(rule) = m.getOrElse(rule,0.0) + probs(lI)/totalP
+                  m(rule) = m.getOrElse(rule,0.0) + probs(best._2)/totalP
                 } else {
                   0.until(nLabels).foreach(lI => {
                     val m = exC(lI)
