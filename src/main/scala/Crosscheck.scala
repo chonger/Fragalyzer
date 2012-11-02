@@ -1,7 +1,8 @@
 import multitool._
 import enbuske._
+import java.io._
 
-import scala.collection.mutable.HashMap
+import scala.collection.mutable.{HashMap,HashSet}
 
 /***
  *
@@ -37,47 +38,152 @@ object GenSemi {
   }
 }
 
+object MakeROC {
+  
+  val data1 = "/home/chonger/data/ICLE/icle_x.xml"
+  val data2 = "/home/chonger/data/ICC/xml/icci_x.xml"
+
+  val rocRaw = "/home/chonger/dump/roc-disc-raw.txt"
+  val rocOut = "/home/chonger/dump/roc-disc.txt"
+
+  def main(args : Array[String]) = {
+
+    val bw = new BufferedWriter(new FileWriter(rocRaw))
+
+    danalyze(data1,data2).foreach({
+      case (gold,res) => {
+
+        println(gold + " - " + res)
+        
+        var sc = 0.0
+        val tot = (0.0 /: res)((a,b) => {
+          b match {
+            case (l,s) => {
+              if(l == gold)
+                sc = s
+              a + s
+            }
+          }
+        })
+        var best = (0.0,"fail")
+        res.foreach({
+          case (l,s) => {
+            if(s > best._1)
+              best = (s,l)
+          }
+        })
+        sc = sc/tot
+        //bw.write(best._2 + "," + gold + "," + sc + "\n")
+        bw.write(best._2 + "," + gold + "," + res.map(x => x._1 + "#" + x._2).mkString("|") + "\n")
+      }
+    })
+
+    bw.close()
+
+    ROC(rocRaw,rocOut)
+
+  }
+
+  def danalyze(train : String, test : String) : List[(String,List[(String,Double)])] = {
+    val pcfgex = new PCFGExtractor()
+    val pcfgI1 = pcfgex.featsBySent(train)
+    val pcfgI2 = pcfgex.featsBySent(test)
+    val pcfgC = pcfgex.classifier(.1)
+
+    val insts1 = pcfgC.makeInsts(pcfgI1)
+    val insts2 = pcfgC.makeInsts(pcfgI2)
+
+    pcfgC.analyze(insts1,insts2)
+  }
+
+  def ganalyze(train : String, test : String) : List[(String,List[(String,Double)])] = {
+
+    val st = new CFGSymbolTable()
+
+    val dox1 = XMLDoc.read(train,st)
+    val dox2 = XMLDoc.read(test,st)
+
+    val cfgs = TreeTools.cfgSet((dox1.toList ::: dox2.toList).flatMap(_.text).toList).toList
+
+    val items1 = dox1.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
+    val items2 = dox2.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
+
+    GenClassifier.analyze(items1,items2,st,cfgs)
+
+  }
+
+}
+
 object Crosscheck {
 
   val data1 = "/home/chonger/data/ICLE/icle_x.xml"
   val data2 = "/home/chonger/data/ICC/xml/icci_x.xml"
-  val data3 = "/home/chonger/data/Lang8/L8-x.xml"
+  val tsg1 = "/home/chonger/data/ICLE/icle-tsg.txt"
+  val tsg2 = "/home/chonger/data/ICC/xml/icci-tsg.txt"
+//  val data3 = "/home/chonger/data/Lang8/L8-x.xml"
 
   def main(args : Array[String]) = {
 
     val d1 = disc(data1,data2)
-    val d2 = disc(data2,data3)
-    val d3 = disc(data1,data3)
+    //val d1T = discTSG(data1,data2,tsg1,tsg2)
+  //  val d2 = disc(data2,data3)
+   // val d3 = disc(data1,data3)
 
-    val g1 = gen(data1,data2)
-    val g2 = gen(data2,data3)
-    val g3 = gen(data1,data3)
-/**
-    val s1 = semi(data1,data2)
-    val s2 = semi(data2,data3)
-    val s3 = semi(data1,data3)
-*/
+    //val g1 = gen(data1,data2)
+    //val g2 = gen(data2,data3)
+    //val g3 = gen(data1,data3)
+
+//    val s1 = semi(data1,data2)
+//    val s2 = semi(data2,data3)
+//    val s3 = semi(data1,data3)
+
   
     println("DISCRIMINATIVE")
-    println("ICLE - ICCI  : " + d1)
-    println("ICCI - LANG8 : " + d2)
-    println("ICLE - LANG8 : " + d3)
+    println("PCFG : ICLE - ICCI  : " + d1)
+    //println("TSG  : ICLE - ICCI  : " + d1T)
+  //  println("ICCI - LANG8 : " + d2)
+    //println("ICLE - LANG8 : " + d3)
 
     println("GENERATIVE")
-    println("ICLE - ICCI  : " + g1)
-    println("ICCI - LANG8 : " + g2)
-    println("ICLE - LANG8 : " + g3)
-/**
-    println("SEMI")
-    println("ICLE - ICCI  : " + s1)
-    println("ICCI - LANG8 : " + s2)
-    println("ICLE - LANG8 : " + s3)
-*/
+    //println("ICLE - ICCI  : " + g1)
+    //println("ICCI - LANG8 : " + g2)
+    //println("ICLE - LANG8 : " + g3)
+
+    //println("SEMI")
+  //  println("ICLE - ICCI  : " + s1)
+//    println("ICCI - LANG8 : " + s2)
+  //  println("ICLE - LANG8 : " + s3)
+
   }
 
   def disc(d1 : String, d2 : String) = {
 
     val pcfgex = new PCFGExtractor()
+    val pcfgI1 = pcfgex.featsBySent(d1)
+    val pcfgI2 = pcfgex.featsBySent(d2)
+    val pcfgC = pcfgex.classifier(.1)
+    /**
+    val cc = pcfgC.crosscheck(pcfgI1,pcfgI2)
+    println("CROSS : " + cc)
+    cc
+*/
+    val insts1 = pcfgC.makeInsts(pcfgI1)
+    val insts2 = pcfgC.makeInsts(pcfgI2)
+
+    (pcfgC.eval(insts1,insts2),pcfgC.eval(insts2,insts1))
+  }
+
+  def discTSG(d1 : String, d2 : String, tsg1 : String, tsg2 : String) = {
+
+    val st = new CFGSymbolTable()
+
+    val grammar = new HashSet[ParseTree]()
+    grammar ++= PTSG.read(tsg1,st).rules.toList.flatMap(_.map(_._1))
+    grammar ++= PTSG.read(tsg2,st).rules.toList.flatMap(_.map(_._1))
+
+    println("Grammar created")
+
+    val pcfgex = new TSGExtractor(grammar.toList,st)
     val pcfgI1 = pcfgex.featsBySent(d1)
     val pcfgI2 = pcfgex.featsBySent(d2)
     val pcfgC = pcfgex.classifier(.1)
@@ -201,8 +307,12 @@ object Crosscheck {
 
     val dirichletP = .00001
 
+    var converged = false
+    var lastLL = 0.0
+
     0.until(100).foreach(i => {
-      accu = emIter()
+      if(!converged)
+        accu = emIter()
     })
 
     def emIter() = {
@@ -239,9 +349,10 @@ object Crosscheck {
           val probs = ptsgs.map(g => g.score(t))// + dirichletP * math.pow(g.PT_BOOST,t.preterminals.length))
 
           val totalP = (0.0 /: probs)(_ + _)
-
-          lprob += math.log(totalP) - math.log(ptsgs(0).PT_BOOST)*t.preterminals.length - math.log(nLabels)
-
+          synchronized {
+            lprob += math.log(totalP) - math.log(ptsgs(0).PT_BOOST)*t.preterminals.length - math.log(nLabels)
+          }
+          
           val best = ((0.0,-1)  /: 0.until(nLabels))((a,b) => {
             if(probs(b) > a._1)
               (probs(b),b)
@@ -252,14 +363,18 @@ object Crosscheck {
           if(best._2 == -1)
             println(probs.mkString(" "))
 
-          if(labels(best._2) == l)
-            acc += 1
-          tot += 1
+          synchronized {
+            if(labels(best._2) == l)
+              acc += 1
+            tot += 1
+          }
 
           val hard = false
 
           if(best._1/totalP > 0.0) {
-            used += 1
+            synchronized {
+              used += 1
+            }
             t.nonterminals.foreach(n => {
               val rule = new ParseTree(n.rule.node())
               synchronized {
@@ -299,6 +414,15 @@ object Crosscheck {
         })
         new PTSG(st,rules)
       })
+
+
+      if(lastLL != 0) {
+        if(lprob - lastLL < .0001) {
+          println("CONVERGED")
+          converged = true
+        }
+      }
+      lastLL = lprob
 
       println("LOGPROB : " + lprob)
       println("Curr ACC = " + acc/tot)

@@ -143,6 +143,41 @@ class MalletClass[A](val extractor : FExtractor[A], regularizer : Option[Double]
     (eval(insts1,insts2) + eval(insts2,insts1)) / 2.0
   }
 
+
+  def analyze(tr_insts : InstanceList, ts_insts : InstanceList) : List[(String,List[(String,Double)])] = {
+
+    val trainer = getTrainer()
+    try {
+      trainer.train(tr_insts)
+    } catch {
+      case e : Exception => {
+        println(e)
+      }
+    }
+    
+    val classifier = trainer.getClassifier()
+      
+    val hardC = true
+
+    var acc = 0.0
+    var tot = 0.0
+    0.until(ts_insts.size()).map(i => {
+      val ts = ts_insts.get(i)
+      val lblin = classifier.classify(ts).getLabeling()
+      val gold = ts.getTarget().toString()
+      val lbls : Array[Object] = lblin.getLabelAlphabet().toArray
+      val results = lbls.map({
+        case ll : String => {
+          val k = lblin.getLabelAlphabet().lookupLabel(ll)
+          val sc : Double = lblin.value(k)
+          (ll,sc)
+        }
+      }).toList
+      (gold,results)
+    }).toList
+    
+  }
+  
   def eval(tr_insts : InstanceList, ts_insts : InstanceList) = {
     val trainer = getTrainer()
     try {

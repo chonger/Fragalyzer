@@ -94,7 +94,34 @@ object GenClassifier {
   }
 
 
+  def crosscheckTSG(train : List[(String,ParseTree)], test : List[(String,ParseTree)], st : CFGSymbolTable, grammar : List[ParseTree]) = {
+
+    import scala.collection.mutable.HashMap
+    val hm = new HashMap[ParseTree,Double]()
+    hm ++= grammar.map(x => (x,.1))
+    val base = new PTSG(st,hm)
+
+    val tG = train.groupBy(_._1)
+
+    def proc(x : Array[List[ParseTree]]) = x.map(y => PTSG.emPTSG(st,base,y,50))
+
+    val labels = tG.map(_._1).toArray
+    
+    val ptsgs = proc(tG.map(_._2.map(_._2).toList).toArray)
+    
+    println("CLASSIFYING")
+    
+    val gc = new GenClassifier(ptsgs,labels)
+    
+    val acc = gc.getAccuracy(test.toList)
+    
+    println("ACC - " + acc)
+    
+    acc
+  }
+
   def crosscheck(train : List[(String,ParseTree)], test : List[(String,ParseTree)], st : CFGSymbolTable, cfgs : List[ParseTree]) = {
+   
     val tG = train.groupBy(_._1)
 
     def proc(x : Array[List[ParseTree]]) = x.map(y => PTSG.mlPCFG(st,y,cfgs))
@@ -112,6 +139,36 @@ object GenClassifier {
     println("ACC - " + acc)
     
     acc
+  }
+
+  
+
+  def analyze(train : List[(String,ParseTree)], 
+              test : List[(String,ParseTree)], 
+              st : CFGSymbolTable, 
+              cfgs : List[ParseTree]) : List[(String,List[(String,Double)])] = {
+
+    val tG = train.groupBy(_._1)
+
+    def proc(x : Array[List[ParseTree]]) = x.map(y => PTSG.mlPCFG(st,y,cfgs))
+
+    val labels = tG.map(_._1).toArray
+    
+    val ptsgs = proc(tG.map(_._2.map(_._2).toList).toArray)
+    
+    println("CLASSIFYING")
+    
+    val gc = new GenClassifier(ptsgs,labels)
+
+    test.map({
+      case (l,t) => {
+        
+        val indSc = 0.until(ptsgs.length).map(x => ptsgs(x).score(t))
+        val tot = (0.0 /: indSc)(_ + _)
+
+        (l,(labels zip indSc.map(_/tot)).toList)
+      }
+    }).toList
   }
 
   def genXVAL(dox : Array[XMLDoc[ParseTree]], st : CFGSymbolTable, proc : (Array[List[ParseTree]]) => Array[PTSG]) = {

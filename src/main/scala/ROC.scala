@@ -3,9 +3,7 @@ import java.io._
 
 object ROC {
 
-  def main(args : Array[String]) : Unit = {
-
-    val in = "/home/chonger/data/ICLE/roc.txt"
+  def apply(in : String, out : String) = {
 
     val classes = new HashSet[String]()
 
@@ -13,7 +11,7 @@ object ROC {
       val parts = l.trim.split(",")
       val choice = parts(0)
       val gold = parts(1)
-      val score = parts(2).toDouble
+      val score = parts(2)
       println(l)
       classes += gold
       (choice,gold,score)
@@ -21,7 +19,7 @@ object ROC {
 
     println(classes.iterator.toArray.mkString(" "))
 
-    val bw = new BufferedWriter(new FileWriter("/home/chonger/data/ICLE/Dpcfg-bnpROC.txt"))
+    val bw = new BufferedWriter(new FileWriter(out))
 
     val nC = classes.size.toDouble
 
@@ -37,8 +35,16 @@ object ROC {
         var fn = 0.0
         decisions.foreach({
           case (ch,gd,sc) => {
-            if(sc > cut && ch == c) { //positive
-              if(ch == gd)
+
+            var myS = 0.0
+            val scores = sc.split("\\|").foreach(x => {
+              val p = x.split("#")
+              if(p(0) == c)
+                myS = p(1).toDouble
+            })
+
+            if(myS > cut) { //positive
+              if(c == gd)
                 tp += 1
               else
                 fp += 1

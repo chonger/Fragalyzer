@@ -60,7 +60,8 @@ object DiscClassifier {
     val ttt = false
 
     if(ttt) {
-      val tsgex = new TSGExtractor(gram_reg)
+      val st = new CFGSymbolTable()
+      val tsgex = new TSGExtractor(gram_reg,st)
       val tsgI = tsgex.featsBySent(xmlF)
       val tsgC = tsgex.classifier(.1)
       val tsgA = tsgC.crossVal(tsgI,.8,10)

@@ -1,9 +1,11 @@
 import multitool._
 import scala.collection.mutable.{HashSet,HashMap,ArrayBuffer}
 
-abstract class FExtractor[A] {
-
-  var st = new CFGSymbolTable()
+abstract class FExtractor[A](val st : CFGSymbolTable) {
+  
+  def this() = {
+    this(new CFGSymbolTable())
+  }
   
   def ex(s : ParseTree) : List[A] 
   def show(a : A) : String
@@ -176,10 +178,13 @@ class BNPExtractor extends FExtractor[ProtoNode] {
 
 }
 
+class TSGExtractor(pts : List[ParseTree], st : CFGSymbolTable) extends FExtractor[ParseTree](st) {
 
-class TSGExtractor(tsgF : String) extends FExtractor[ParseTree] {
+  def this(tsgF : String, st : CFGSymbolTable) = {
+    this(PTSG.read(tsgF,st).rules.toList.flatMap(_.map(_._1)),st)
+  }
 
-  val cod = new Compacter(PTSG.read(tsgF,st).rules.toList.flatMap(_.map(_._1)))
+  val cod = new Compacter(pts)
 
   def ex(s : ParseTree) = {
     s.nonterminals.flatMap(n => {
