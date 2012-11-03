@@ -3,48 +3,6 @@ import enbuske._
 
 object GenClassifier {
 
-  import java.io._
-  val rocFile = "/home/chonger/data/ICLE/roc.txt"
-
-  //val rocW = new BufferedWriter(new FileWriter(rocFile))
-  
-  def main(args : Array[String]) = {
-
-    val fb = "/home/chonger/data/ICLE/"
-/**    
-    val es = ESampler.continue(fb + "icle_bnp_unk.xml",fb + "bnp-sampled.txt")
-    val ptsg = es.getPTSGs()
-    ptsg(0).write(fb + "bnp-grammar.xml")
-  */
-
-    val st = new CFGSymbolTable()
-    //val dox1 = XMLDoc.read(fb + "icle_unk.xml",st)    
-    //val dox2 = XMLDoc.read("/home/chonger/data/ICC/xml/bparsed.xml",st)    
-
-    val dox = XMLDoc.read("/home/chonger/data/Lang8/L8-bp-unk.xml",st)
-    val cfgs = TreeTools.cfgSet(dox.toList.flatMap(_.text).toList).toList
-    //val cfgs = TreeTools.cfgSet((dox1.toList ::: dox2.toList).flatMap(_.text).toList).toList
-/**
-    val items1 = dox1.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
-    val items2 = dox2.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
-
-    println("CROSS : " + (crosscheck(items1,items2,st,cfgs) + crosscheck(items2,items1,st,cfgs))/2.0)
-*/
-/**
-    dox.groupBy(_.getMeta("goldLabel")).foreach({
-      case (l,ds) => println(l + " -> " + (0 /: ds)(_ + _.text.length))
-    })
-*/
-    println("XVAL : " + pcfgXVAL(dox,st,TreeTools.cfgSet(dox.flatMap(_.text).toList).toList))
-
-    //val ptsg = PTSG.read(fb + "reg-grammar.txt",st)    
-    //println("XVAL : " + tsgXVAL(dox,st,ptsg))
-
-  //  println("XVAL : " + enbuskeXVAL(dox,st))
-    
-    //rocW.close()
-  }
-
   def tsgXVAL(dox : Array[XMLDoc[ParseTree]], st : CFGSymbolTable, grammar : List[ParseTree]) : Double = {
     import scala.collection.mutable.HashMap
     val hm = new HashMap[ParseTree,Double]()
@@ -96,20 +54,21 @@ object GenClassifier {
 
   def crosscheckTSG(train : List[(String,ParseTree)], test : List[(String,ParseTree)], st : CFGSymbolTable, grammar : List[ParseTree]) = {
 
+    val MAX_EM_ITERS = 100
+
     import scala.collection.mutable.HashMap
     val hm = new HashMap[ParseTree,Double]()
     hm ++= grammar.map(x => (x,.1))
     val base = new PTSG(st,hm)
 
     val tG = train.groupBy(_._1)
-
-    def proc(x : Array[List[ParseTree]]) = x.map(y => PTSG.emPTSG(st,base,y,50))
+    val treez : Array[List[ParseTree]] = tG.map(_._2.map(_._2)).toArray
 
     val labels = tG.map(_._1).toArray
     
-    val ptsgs = proc(tG.map(_._2.map(_._2).toList).toArray)
+    val ptsgs = treez.map(y => PTSG.emPTSG(st,base,y,MAX_EM_ITERS))
     
-    println("CLASSIFYING")
+    println("tsg classifying")
     
     val gc = new GenClassifier(ptsgs,labels)
     

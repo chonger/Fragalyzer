@@ -124,12 +124,13 @@ object Crosscheck {
 
   def main(args : Array[String]) = {
 
-    val d1 = disc(data1,data2)
+    //val d1 = disc(data1,data2)
     //val d1T = discTSG(data1,data2,tsg1,tsg2)
   //  val d2 = disc(data2,data3)
    // val d3 = disc(data1,data3)
 
     //val g1 = gen(data1,data2)
+    val g1T = genTSG(data1,data2,tsg1,tsg2)
     //val g2 = gen(data2,data3)
     //val g3 = gen(data1,data3)
 
@@ -139,13 +140,14 @@ object Crosscheck {
 
   
     println("DISCRIMINATIVE")
-    println("PCFG : ICLE - ICCI  : " + d1)
+    //println("PCFG : ICLE - ICCI  : " + d1)
     //println("TSG  : ICLE - ICCI  : " + d1T)
   //  println("ICCI - LANG8 : " + d2)
     //println("ICLE - LANG8 : " + d3)
 
     println("GENERATIVE")
-    //println("ICLE - ICCI  : " + g1)
+    //println("PCFG : ICLE - ICCI  : " + g1)
+    println("TSG  : ICLE - ICCI  : " + g1T)
     //println("ICCI - LANG8 : " + g2)
     //println("ICLE - LANG8 : " + g3)
 
@@ -211,13 +213,25 @@ object Crosscheck {
     val items2 = dox2.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
 
     (GenClassifier.crosscheck(items1,items2,st,cfgs),GenClassifier.crosscheck(items2,items1,st,cfgs))
-/**
-    val cc = (GenClassifier.crosscheck(items1,items2,st,cfgs) + GenClassifier.crosscheck(items2,items1,st,cfgs))/2.0
 
-    println("CROSS : " + cc)
+  }
 
-    cc
-*/
+  def genTSG(d1 : String, d2 : String, tsg1 : String, tsg2 : String) = {
+
+    val st = new CFGSymbolTable()
+
+    val grammar = new HashSet[ParseTree]()
+    grammar ++= PTSG.read(tsg1,st).rules.toList.flatMap(_.map(_._1))
+    grammar ++= PTSG.read(tsg2,st).rules.toList.flatMap(_.map(_._1))
+
+    val dox1 = XMLDoc.read(d1,st)
+    val dox2 = XMLDoc.read(d2,st)
+
+    val items1 = dox1.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
+    val items2 = dox2.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
+
+    (GenClassifier.crosscheckTSG(items1,items2,st,grammar.toList),GenClassifier.crosscheckTSG(items2,items1,st,grammar.toList))
+
   }
 
   def semi(d1 : String, d2 : String) = {
@@ -233,7 +247,26 @@ object Crosscheck {
     val items1 = dox1.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
     val items2 = dox2.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
 
-    (check(items2,items1,st,cfgs) + check(items1,items2,st,cfgs)) / 2.0
+    (check(items1,items2,st,cfgs) + check(items2,items1,st,cfgs)) / 2.0
+
+  }
+
+  def semiTSG(d1 : String, d2 : String, tsg1 : String, tsg2 : String) = {
+
+    val st = new CFGSymbolTable()
+
+    val dox1 = XMLDoc.read(d1,st)
+    val dox2 = XMLDoc.read(d2,st)
+
+    val grammar = new HashSet[ParseTree]()
+    grammar ++= PTSG.read(tsg1,st).rules.toList.flatMap(_.map(_._1))
+    grammar ++= PTSG.read(tsg2,st).rules.toList.flatMap(_.map(_._1))
+
+    //list[string,parsetree]
+    val items1 = dox1.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
+    val items2 = dox2.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
+
+    (check(items1,items2,st,grammar.toList),check(items2,items1,st,grammar.toList))
 
   }
 
@@ -274,7 +307,142 @@ object Crosscheck {
     avg
   }
 
-  def check(labeled : List[(String,ParseTree)], unlabeled : List[(String,ParseTree)],st : CFGSymbolTable, cfgs : List[ParseTree]) = {
+  def check(labeled : List[(String,ParseTree)], unlabeled : List[(String,ParseTree)],st : CFGSymbolTable, grammar : List[ParseTree]) = {
+
+    val data = labeled.groupBy(_._1)
+
+    val labels = data.map(_._1).toArray
+    val nLabels = labels.length
+
+    println("init PCFGS")
+
+    var ptsgs = {
+      val hm = new HashMap[ParseTree,Double]()
+      hm ++= grammar.map(x => (x,.1))
+      val base = new PTSG(st,hm)
+      data.map(y => PTSG.emPTSG(st,base,y._2.map(_._2),100)).toArray //initialize with the emTSG for each labeled section
+    }
+
+    def preproc(d : List[(String,ParseTree)]) = {
+      d.map({
+        case(s,t) => {
+          (labels.indexOf(s),t,ptsgs(0).getOverlays(t))
+        }
+      })
+    }
+
+    val ldata = preproc(labeled)
+    val udata = preproc(unlabeled)
+
+    var accu = 0.0
+
+    var converged = false
+    var lastLL = 0.0
+
+    0.until(100).foreach(i => {
+      if(!converged)
+        accu = emIter()
+    })
+
+    def emIter() = {
+    
+      val exC = Array.tabulate(nLabels)(x => new HashMap[ParseTree,Double]())
+
+      var lprob = 0.0
+
+      println("get labeled expectations")
+
+      ldata.par.foreach({
+        case (lInd,t,oles) => {
+          val ptsg = ptsgs(lInd)
+          val (eee,norm) = ptsg.getEx(t,oles)
+          synchronized {
+            lprob += math.log(norm) - math.log(ptsg.PT_BOOST)*t.preterminals.length
+            val m = exC(lInd)
+            eee.foreach({
+              case (t,p) => {
+                m(t) = m.getOrElse(t,0.0) + p
+              }
+            })
+          }
+        }
+      })
+      
+      println("get unlabled expectations")
+
+      //var used = 0
+      var acc = 0.0
+      var tot = udata.length.toDouble
+
+      udata.par.foreach({
+        case (lInd,t,oles) => {
+          val exes = ptsgs.map(_.getEx(t,oles))
+          val norms = exes.map(_._2)
+          var best = (0.0,-1)
+          val tnorm = (0.0 /: 0.until(nLabels))((a,b) => {
+            if(norms(b) > best._1)
+              best = (norms(b),b)
+            a + norms(b)
+          })  
+          val proportions = norms.map(_/tnorm)
+          synchronized {
+            if(best._2 == lInd)
+              acc += 1.0
+            lprob += math.log(tnorm) - math.log(ptsgs(0).PT_BOOST)*t.preterminals.length - math.log(nLabels)
+            0.until(nLabels).foreach(i => {
+              val prop = proportions(i)
+              val eee = exes(i)._1
+              val m = exC(i)
+              eee.foreach({
+                case (t,p) => {
+                  m(t) = m.getOrElse(t,0.0) + p*prop
+                }
+              })
+            })
+          }
+        }
+      })
+
+      //println("USED : " + used + " out of " + unlabeled.length)
+
+      val smooth = .00001
+
+      //estimate new pcfgs
+
+      ptsgs = exC.map(ex => {
+        val rules = new HashMap[ParseTree,Double]()
+        val norms = new HashMap[Int,Double]()
+        grammar.foreach(c => {
+          val count = ex.getOrElse(c,0.0) + smooth
+          rules += c -> count
+          val sym = c.root.symbol
+          norms(sym) = norms.getOrElse(sym,0.0) + count
+        })
+
+        rules.foreach({
+          case (r,d) => rules(r) = d/norms(r.root.symbol)
+        })
+        new PTSG(st,rules)
+      })
+
+
+      if(lastLL != 0) {
+        if(lprob - lastLL < .0001) {
+          println("CONVERGED")
+          converged = true
+        }
+      }
+      lastLL = lprob
+
+      println("LOGPROB : " + lprob)
+      println("Curr ACC = " + acc/tot)
+      acc/tot
+    }
+
+    accu
+  }
+
+  def checkOLD(labeled : List[(String,ParseTree)], unlabeled : List[(String,ParseTree)],st : CFGSymbolTable, cfgs : List[ParseTree]) = {
 
     val data = labeled.groupBy(_._1)
 
