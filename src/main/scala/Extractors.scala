@@ -13,8 +13,12 @@ abstract class FExtractor[A](val st : CFGSymbolTable) {
   def classifier() = new MalletClass[A](this)
   def classifier(d : Double) = new MalletClass[A](this,Some(d))
 
-  def featsBySent(fname : String) = {
+  def featsBySent(fname : String) : List[(String,HashSet[A])] = {
     val dox = XMLDoc.read(fname,st)
+    featsBySent(dox)
+  }
+
+  def featsBySent(dox : Array[XMLDoc[ParseTree]]) : List[(String,HashSet[A])] = {
     val items = dox.par.flatMap(d => {
       val lbl = d.getMeta("goldLabel")
       d.text.map(s => {
@@ -199,6 +203,70 @@ class TSGExtractor(pts : List[ParseTree], st : CFGSymbolTable) extends FExtracto
 
   def show(a : ParseTree) = a.fString(st)
   def find(f : ParseTree, a : Array[ParseTree]) : Unit = {
+
+  }
+
+}
+
+class NNPExtractor() extends FExtractor[String] {
+
+  val sss = List("NNP","NNPS")
+
+  def ex(s : ParseTree) = {
+    s.preterminals.flatMap(n => {
+      if(sss contains st.syms(n.symbol))
+        List(st.terms(n.kid.terminal))
+      else
+        Nil
+    })
+  }
+
+  def show(a : String) = a
+  def find(f : String, a : Array[ParseTree]) : Unit = {
+
+  }
+
+}
+
+class WordExtractor() extends FExtractor[String] {
+
+  def ex(s : ParseTree) = {
+    s.preterminals.map(n => {
+      st.terms(n.kid.terminal)
+    })
+  }
+
+  def show(a : String) = a
+  def find(f : String, a : Array[ParseTree]) : Unit = {
+
+  }
+
+}
+
+class IgnoreExtractor() extends FExtractor[String] {
+
+  val ilist = new HashSet[String]() ++ List("China","India","Turkey","Ataturk","Taiwan","Germany","Europe","France","Saudi","Arabia",
+                   "Korea","Japan","Paris","Italy","Italian","Japanese","Korean","Istanbul","Tokyo","korea")
+
+  def ex(s : ParseTree) = {
+    s.preterminals.map(n => {
+      st.terms(n.kid.terminal)
+    })
+  }
+
+  def trim(x : List[(String,HashSet[String])]) = {
+
+    x.map({
+      case (a,b) => {
+        val c = (new HashSet[String]() ++ b) -- ilist
+        (a,c)
+      }
+    })
+
+  }
+
+  def show(a : String) = a
+  def find(f : String, a : Array[ParseTree]) : Unit = {
 
   }
 

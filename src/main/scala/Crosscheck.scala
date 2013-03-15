@@ -20,6 +20,23 @@ ICLE - ICCI : 0.3972534676404823
 ICLE - LANG8 : 0.3429334593572779
 LANG8 - ICCI : 0.3325936587820835
   *
+  *
+  * ((0.4273,0.3986),(0.30816666666666664,0.3542),(0.33350774382586856,0.3559),(0.28983333333333333,0.3499),(0.30692758476349935,0.3754),(0.3170782754290498,0.3335))
+  ((0.4362,0.4104),(0.31633333333333336,0.351),(0.33591460862285477,0.3542),(0.29783333333333334,0.3692),(0.3132063624947677,0.3696),(0.3195897865215571,0.315))
+
+ *   DISCRIMIANTE
+  * Vector((0,1,0.1,0.4273), (0,2,1.0,0.30766666666666664), (0,3,1.0,0.3114), (1,0,1.0,0.392), (1,2,0.1,0.28983333333333333), (1,3,0.1,0.3067), (2,0,0.01,0.3532), (2,1,0.1,0.3499), (2,3,0.01,0.3039), (3,0,0.1,0.351), (3,1,0.1,0.3652), (3,2,0.1,0.32816666666666666))
+
+* D-TSG
+*Vector((0,1,0.1,0.4375), (0,2,0.1,0.31616666666666665), (0,3,0.1,0.33874005860192546), (1,0,1.0,0.3887), (1,2,0.1,0.30133333333333334), (1,3,0.01,0.3075554625366262), (2,0,0.01,0.3621), (2,1,0.01,0.374), (2,3,0.01,0.3247174550020929), (3,0,0.01,0.3613), (3,1,0.01,0.3765), (3,2,0.01,0.32133333333333336))
+
+  * GEN-PCFG
+  * Vector((0,1,0.1,0.4364), (0,2,10.0,0.2905), (0,3,10.0,0.2962), (1,0,0.1,0.4002), (1,2,1.0,0.2931666666666667), (1,3,1.0,0.2825), (2,0,1.0,0.3225), (2,1,10.0,0.3149), (2,3,10.0,0.2819), (3,0,0.01,0.315), (3,1,1.0,0.3118), (3,2,1.0,0.309))
+
+*   GEN-TSG
+ * Vector((0,1,1.0,0.4431), (0,2,10.0,0.29283333333333333), (0,3,10.0,0.3015906236919213), (1,0,0.01,0.3777), (1,2,1.0,0.30133333333333334), (1,3,1.0,0.29280033486814566), (2,0,1.0,0.3246), (2,1,1.0,0.3406), (2,3,1.0,0.28840519045625784), (3,0,1.0,0.3211), (3,1,1.0,0.3269), (3,2,1.0,0.2916666666666667))
+
+  * 
   */ 
 
 
@@ -80,7 +97,7 @@ object MakeROC {
 
     bw.close()
 
-    ROC(rocRaw,rocOut)
+    //ROC(rocRaw,rocOut)
 
   }
 
@@ -116,21 +133,24 @@ object MakeROC {
 
 object Crosscheck {
 
-  val data1 = "/home/chonger/data/ICLE/icle_x.xml"
-  val data2 = "/home/chonger/data/ICC/xml/icci_x.xml"
+  val data1 = "/home/chonger/data/ICLE/icle_u.xml"
+  val data2 = "/home/chonger/data/ICC/xml/icci_u.xml"
+  val data3 = "/home/chonger/data/FCE/fce_u.xml"
+  val data4 = "/home/chonger/data/Lang8/L8_u.xml"
   val tsg1 = "/home/chonger/data/ICLE/icle-tsg.txt"
   val tsg2 = "/home/chonger/data/ICC/xml/icci-tsg.txt"
 //  val data3 = "/home/chonger/data/Lang8/L8-x.xml"
 
   def main(args : Array[String]) = {
 
-    //val d1 = disc(data1,data2)
+    val d1 = gen(Array(data1,data2,data3,data4))
+    println(d1)
     //val d1T = discTSG(data1,data2,tsg1,tsg2)
   //  val d2 = disc(data2,data3)
    // val d3 = disc(data1,data3)
 
     //val g1 = gen(data1,data2)
-    val g1T = genTSG(data1,data2,tsg1,tsg2)
+//    val g1T = genTSG(data1,data2,tsg1,tsg2)
     //val g2 = gen(data2,data3)
     //val g3 = gen(data1,data3)
 
@@ -147,7 +167,7 @@ object Crosscheck {
 
     println("GENERATIVE")
     //println("PCFG : ICLE - ICCI  : " + g1)
-    println("TSG  : ICLE - ICCI  : " + g1T)
+  //  println("TSG  : ICLE - ICCI  : " + g1T)
     //println("ICCI - LANG8 : " + g2)
     //println("ICLE - LANG8 : " + g3)
 
@@ -158,21 +178,34 @@ object Crosscheck {
 
   }
 
-  def disc(d1 : String, d2 : String) = {
+  def disc(fs : Array[String]) = {
 
     val pcfgex = new PCFGExtractor()
-    val pcfgI1 = pcfgex.featsBySent(d1)
-    val pcfgI2 = pcfgex.featsBySent(d2)
-    val pcfgC = pcfgex.classifier(.1)
-    /**
-    val cc = pcfgC.crosscheck(pcfgI1,pcfgI2)
-    println("CROSS : " + cc)
-    cc
-*/
-    val insts1 = pcfgC.makeInsts(pcfgI1)
-    val insts2 = pcfgC.makeInsts(pcfgI2)
+    val items = fs.map(f => pcfgex.featsBySent(f))
 
-    (pcfgC.eval(insts1,insts2),pcfgC.eval(insts2,insts1))
+    println("READY")
+
+    val nItems = fs.length
+    0.until(nItems).flatMap(x => {
+      0.until(nItems).flatMap(y => {
+        if(x != y) {
+          val dev = 0.until(nItems).filter(z => z != x && z != y)
+          val ch = 0.until(5).map(z => {
+            val sm = math.pow(10,z-2)
+            val pcfgC = pcfgex.classifier(sm)
+            val e = (0.0 /: dev)((a,b) => a + pcfgC.eval(pcfgC.makeInsts(items(x)),pcfgC.makeInsts(items(b))))
+            (e,sm)
+          }).toArray
+          val useS = ch.sortWith(_._1 > _._1)(0)._2
+          println("Chose " + useS)
+          val pcfgC = pcfgex.classifier(useS)
+          val r = pcfgC.eval(pcfgC.makeInsts(items(x)),pcfgC.makeInsts(items(y)))
+          List((x,y,useS,r))
+        } else {
+          Nil
+        }
+      })
+    })
   }
 
   def discTSG(d1 : String, d2 : String, tsg1 : String, tsg2 : String) = {
@@ -200,19 +233,40 @@ object Crosscheck {
     (pcfgC.eval(insts1,insts2),pcfgC.eval(insts2,insts1))
   }
 
-  def gen(d1 : String, d2 : String) = {
+  def gen(fs : Array[String]) = {
 
     val st = new CFGSymbolTable()
 
-    val dox1 = XMLDoc.read(d1,st)
-    val dox2 = XMLDoc.read(d2,st)
+    val dox = fs.map(x => XMLDoc.read(x,st))
 
-    val cfgs = TreeTools.cfgSet((dox1.toList ::: dox2.toList).flatMap(_.text).toList).toList
+    val cfgs = TreeTools.cfgSet(dox.flatMap(_.flatMap(_.text).toList).toList).toList
 
-    val items1 = dox1.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
-    val items2 = dox2.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
+    val items = dox.map(ds => ds.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList)
 
-    (GenClassifier.crosscheck(items1,items2,st,cfgs),GenClassifier.crosscheck(items2,items1,st,cfgs))
+    //(GenClassifier.crosscheck(items1,items2,st,cfgs),GenClassifier.crosscheck(items2,items1,st,cfgs))
+
+    println("READY")
+
+    val nItems = fs.length
+
+    0.until(nItems).flatMap(x => {
+      0.until(nItems).flatMap(y => {
+        if(x != y) {
+          val dev = 0.until(nItems).filter(z => z != x && z != y)
+          val ch = 0.until(5).map(z => {
+            val sm = math.pow(10,z-2)
+            val e = (0.0 /: dev)((a,b) => a + GenClassifier.crosscheck(items(x),items(b),st,cfgs,sm))
+            (e,sm)
+          }).toArray
+          val useS = ch.sortWith(_._1 > _._1)(0)._2
+          println("Chose " + useS)
+          val r = GenClassifier.crosscheck(items(x),items(y),st,cfgs,useS)
+          List((x,y,useS,r))
+        } else {
+          Nil
+        }
+      })
+    })
 
   }
 
@@ -247,7 +301,7 @@ object Crosscheck {
     val items1 = dox1.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
     val items2 = dox2.flatMap(d => d.text.map(x => (d.getMeta("goldLabel"),x))).toList
 
-    (check(items1,items2,st,cfgs) + check(items2,items1,st,cfgs)) / 2.0
+    (check(items1,items2,st,cfgs),check(items2,items1,st,cfgs))
 
   }
 
@@ -320,7 +374,7 @@ object Crosscheck {
       val hm = new HashMap[ParseTree,Double]()
       hm ++= grammar.map(x => (x,.1))
       val base = new PTSG(st,hm)
-      data.map(y => PTSG.emPTSG(st,base,y._2.map(_._2),100)).toArray //initialize with the emTSG for each labeled section
+      data.map(y => PTSG.emPTSG(st,base,y._2.map(_._2),100,1)).toArray //initialize with the emTSG for each labeled section
     }
 
     def preproc(d : List[(String,ParseTree)]) = {

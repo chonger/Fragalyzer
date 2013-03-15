@@ -1,7 +1,31 @@
 import multitool._
-import enbuske._
+//import enbuske._
+
+/**
+ *
+  *   ICLE_CN
+  *
+  *   PCFG D-75.3 G-75.9
+  *
+  *   ICCI_CN
+  *
+  *   PCFG D-73.2 G-71.0
+  */ 
 
 object GenClassifier {
+
+  def main(args : Array[String]) : Unit = {
+    
+    val inF = "/home/chonger/data/FCE/fce_u.xml"
+
+    val st = new CFGSymbolTable()
+    val dox = XMLDoc.read(inF,st)
+
+    val cfgs = TreeTools.cfgSet(dox.toList.flatMap(_.text).toList).toList
+
+    println(pcfgXVAL(dox,st,cfgs))
+  }
+          
 
   def tsgXVAL(dox : Array[XMLDoc[ParseTree]], st : CFGSymbolTable, grammar : List[ParseTree]) : Double = {
     import scala.collection.mutable.HashMap
@@ -12,13 +36,13 @@ object GenClassifier {
   }
 
   def tsgXVAL(dox : Array[XMLDoc[ParseTree]], st : CFGSymbolTable, base : PTSG) : Double = {
-    genXVAL(dox,st,x => x.map(y => PTSG.emPTSG(st,base,y,20)))
+    genXVAL(dox,st,x => x.map(y => PTSG.emPTSG(st,base,y,20,1)))
   }
 
   def pcfgXVAL(dox : Array[XMLDoc[ParseTree]], st : CFGSymbolTable, cfgs : List[ParseTree]) = {
     genXVAL(dox,st,x => x.map(y => PTSG.mlPCFG(st,y,cfgs)))
   }
-  
+/**  
   def enbuskeXVAL(dox : Array[XMLDoc[ParseTree]], st : CFGSymbolTable) : Double = {
 
     val nIters = 10
@@ -50,9 +74,14 @@ object GenClassifier {
 
     genXVAL(dox,st,proc)
   }
+*/
+
+def crosscheckTSG(train : List[(String,ParseTree)], test : List[(String,ParseTree)], st : CFGSymbolTable, grammar : List[ParseTree]) : Double = {
+  crosscheckTSG(train,test,st,grammar,1.0)
+}
 
 
-  def crosscheckTSG(train : List[(String,ParseTree)], test : List[(String,ParseTree)], st : CFGSymbolTable, grammar : List[ParseTree]) = {
+  def crosscheckTSG(train : List[(String,ParseTree)], test : List[(String,ParseTree)], st : CFGSymbolTable, grammar : List[ParseTree], sm : Double) : Double = {
 
     val MAX_EM_ITERS = 100
 
@@ -66,7 +95,7 @@ object GenClassifier {
 
     val labels = tG.map(_._1).toArray
     
-    val ptsgs = treez.map(y => PTSG.emPTSG(st,base,y,MAX_EM_ITERS))
+    val ptsgs = treez.map(y => PTSG.emPTSG(st,base,y,MAX_EM_ITERS,sm))
     
     println("tsg classifying")
     
@@ -79,11 +108,11 @@ object GenClassifier {
     acc
   }
 
-  def crosscheck(train : List[(String,ParseTree)], test : List[(String,ParseTree)], st : CFGSymbolTable, cfgs : List[ParseTree]) = {
+  def crosscheck(train : List[(String,ParseTree)], test : List[(String,ParseTree)], st : CFGSymbolTable, cfgs : List[ParseTree], smooth : Double) = {
    
     val tG = train.groupBy(_._1)
 
-    def proc(x : Array[List[ParseTree]]) = x.map(y => PTSG.mlPCFG(st,y,cfgs))
+    def proc(x : Array[List[ParseTree]]) = x.map(y => PTSG.mlPCFG(st,y,cfgs,smooth))
 
     val labels = tG.map(_._1).toArray
     

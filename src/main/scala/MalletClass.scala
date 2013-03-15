@@ -135,6 +135,13 @@ class MalletClass[A](val extractor : FExtractor[A], regularizer : Option[Double]
   }
 
 
+  def check(data1 : List[(String,HashSet[A])], data2 : List[(String,HashSet[A])]) = {
+    val insts1 = makeInsts(data1)
+    val insts2 = makeInsts(data2)
+
+    eval(insts1,insts2)
+  }
+
   def crosscheck(data1 : List[(String,HashSet[A])], data2 : List[(String,HashSet[A])]) = {
 
     val insts1 = makeInsts(data1)
@@ -238,7 +245,7 @@ class MalletClass[A](val extractor : FExtractor[A], regularizer : Option[Double]
 
   def extremes(data : List[(String,HashSet[A])],xmlF : String) = {
 
-    val dox = XMLDoc.read(xmlF,extractor.st)
+//    val dox = XMLDoc.read(xmlF,extractor.st)
 
     val insts = makeInsts(data)
 
@@ -255,7 +262,9 @@ class MalletClass[A](val extractor : FExtractor[A], regularizer : Option[Double]
     
     val classifier = trainer.getClassifier()
 
-    val nFs  = math.min(inds.size,10)
+
+
+    val nFs  = math.min(inds.size,20)
     val sw = new java.io.StringWriter()
     val pw = new java.io.PrintWriter(sw)
     classifier.printExtremeFeatures(pw,nFs)
@@ -263,11 +272,23 @@ class MalletClass[A](val extractor : FExtractor[A], regularizer : Option[Double]
     pw.close()
     val s = sw.toString
 
+
     val exFeats = s.split("\\n").map(l => {
       val x = l.trim.split("\\s")
       
       val lbl = x(3)
-      
+
+      val fs = x.drop(4).slice(0,nFs).flatMap(fstr => {
+        try {
+          val p = fstr.split(":")
+          val f = lookup(p(0).toInt)
+          List((f,p(1),List[(String,String)]()))
+        } catch {
+          case _ => Nil
+        }
+      })
+
+/**      
       val fs = x.drop(4).slice(0,nFs).flatMap(fstr => {
         val p = fstr.split(":")
         try {
@@ -294,18 +315,18 @@ class MalletClass[A](val extractor : FExtractor[A], regularizer : Option[Double]
           }
         }
       }).slice(0,10)
-
+*/
       (lbl,fs)
     })
 
     exFeats.foreach({
       case (lbl,fs) => {
         println("\n" + lbl)
-        val ddd = dox.filter(_.getMeta("goldLabel") == lbl).flatMap(_.text)
+        //val ddd = dox.filter(_.getMeta("goldLabel") == lbl).flatMap(_.text)
         fs.foreach({
           case (f,s,c) => {
             println(extractor.show(f) + " " + s + " - " + c.map(x => x._1 + ":" + x._2).mkString(" "))
-            extractor.find(f,ddd)
+          //  extractor.find(f,ddd)
           }
         })
       }
