@@ -4,14 +4,32 @@ import scala.collection.mutable.HashMap
 
 object MakeTex {
 
-    val st = new CFGSymbolTable()
-  
+  lazy val st = new CFGSymbolTable()
+
   def main(args : Array[String]) = {
+
+    val treeFiles = Array("/home/chonger/data/NLI/icle_u.xml",
+                          "/home/chonger/data/NLI/icci_u.xml",
+                          "/home/chonger/data/NLI/L8_u.xml",
+                          "/home/chonger/data/NLI/fce_u.xml")
+
+    val ds = List("ICLE","ICCI","LANG8","FCE")
     
-    val file = "/home/chonger/dump/X.txt"
+    val tsgFile = "/home/chonger/data/NLI/naacl_smart.txt"
+    val fSave = "/home/chonger/data/NLI/naacl_save.txt"
+
+
+    
+    val data = treeFiles.map(f => {
+      XMLDoc.read(f,st)
+    })
+
+    val grammar = PTSG.read(tsgFile,st).rules.toArray.flatMap(_.map(_._1))
+    val analyzer = new L1Analyzer(st,data,grammar,fSave)
+    val useFrags = analyzer.fullFilter(15,100,.2,5).toArray
+
     val out = "/home/chonger/Documents/corpus.tex"
 
-    val br = new BufferedReader(new FileReader(file))
     val bw = new BufferedWriter(new FileWriter(out))
 
     bw.write("\\documentclass[11pt]{article}\n")
@@ -22,35 +40,19 @@ object MakeTex {
     bw.write("\n\\hrulefill\n\n")
 //    bw.write("\\begin{tabular}{rl}\n")
 
-
-    br.readLine()
-    var line = br.readLine()
-
-    val langs = List("GE","SP","JP","CN")
-    val ds = List("ICLE","ICCI","LANG8","FCE")
+    val langs = analyzer.labels
 
     var c = 0
 
-    while(line != null && c < 20) {
+    useFrags.foreach(frag => {
  //     c += 1
       val counts = new HashMap[(String,Int),Int]()
-      val t = st.growTree(line)
+      val t = analyzer.frags(frag.id)
       println(t.fString(st))
-      br.readLine()
-      br.readLine().trim.split(" ").drop(1).foreach(x => {
-        val parts = x.split("-")
-        val l = parts(0)
-        val d = parts(1).toInt
-        val c = parts(2).toInt
-        val k = (l,d)
-        counts(k) = c
-      })
-      br.readLine()
-      br.readLine()
-      val xxx = br.readLine().split(" ")(1).toDouble
-      val ddd = br.readLine().split(" ")(1).toDouble
-      br.readLine()
-      line = br.readLine() 
+
+      val xxx = frag.x2
+      val ddd = frag.aldX2
+
       bw.write("\\vspace{1em}\n")
       bw.write("\\begin{array}[t]{p{.33\\textwidth}p{.33\\textwidth}p{.33\\textwidth}}\n")
                //bw.write("\n\\begin{tabular}{cc}\n")      
@@ -58,22 +60,20 @@ object MakeTex {
 
       bw.write("\n\\begin{tabular}{ccccc}\n")
       bw.write("\\toprule\n&" + langs.toArray.mkString("&") + "\\\\\n\\midrule\n")
-      val sums = new HashMap[String,Int]()
-      0.until(4).foreach(i => {
-
+   
+      var i = 0
+      (frag.occur zip analyzer.lcountsA).foreach(x => {
+        val y = (x._1 zip x._2).map(z => z._1.toDouble / z._2.toDouble).map(_ * 1000).map("%.1f" format _)
         bw.write(ds(i)+"&")
-        val s = langs.map(l => {
-          val c = counts((l,i))
-          sums(l) = sums.getOrElse(l,0) + c
-          c
-        }).toArray.mkString("&")
-        bw.write(s + "\\\\\n")
+        i += 1
+        bw.write(y.toArray.mkString("&")+ "\\\\\n")
+
       })
+
       bw.write("\\midrule\n")
-      bw.write("SUM&")
-      bw.write(langs.map(l => {
-        sums(l)
-      }).toArray.mkString("&") + "\\\\\n\\bottomrule\n")
+      val sums = (frag.loccur zip analyzer.lTotals).map(z => z._1.toDouble / z._2.toDouble).map(_ * 1000).map("%.1f" format _)
+      bw.write("ALL&")
+      bw.write(sums.toArray.mkString("&") + "\\\\\n\\bottomrule\n")
       bw.write("\\end{tabular}&\\vspace{-4em}\\begin{eqnarray*}\n")
       bw.write("\\chi^2_L: " + "%.1f".format(xxx) + "\\\\\n")
       bw.write("\\chi^2_D: " + "%.1f".format(ddd) + "\\\\\n")
@@ -81,10 +81,10 @@ object MakeTex {
       bw.write("\\vspace{1em}\n")
       bw.write("\n\\hrulefill\n\n")
 
-    }
+    })
 
     bw.write("\\end{document}\n")
-    br.close()
+
     bw.close()
 
   }

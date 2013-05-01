@@ -150,6 +150,39 @@ class MalletClass[A](val extractor : FExtractor[A], regularizer : Option[Double]
     (eval(insts1,insts2) + eval(insts2,insts1)) / 2.0
   }
 
+  def lossXval(data : List[(String,HashSet[A])], trainPr : Double, nTests : Int) = {
+
+    val insts = makeInsts(data)
+
+    println("Working with " + inds.size + " features")
+
+    var avgAcc = 0.0
+
+    0.until(nTests).foreach(testI => {
+      
+      val splits = insts.split(new java.util.Random(),Array(trainPr,1-trainPr))
+
+      val tr_insts = splits(0);
+      val ts_insts = splits(1);
+
+      avgAcc += loss(tr_insts,ts_insts)
+    
+    })
+
+    avgAcc / nTests.toDouble
+  }
+  
+  def loss(tr_insts : InstanceList, ts_insts : InstanceList) : Double = {
+    
+    val results = analyze(tr_insts,ts_insts)
+    val r = (0.0 /: results)((a,b) => {
+      val hm = new HashMap[String,Double]() ++ b._2
+      val l = 1.0 - hm.getOrElse(b._1,0.0)
+      a + l
+    })
+    r / ts_insts.size().toDouble
+
+  }
 
   def analyze(tr_insts : InstanceList, ts_insts : InstanceList) : List[(String,List[(String,Double)])] = {
 
@@ -242,6 +275,8 @@ class MalletClass[A](val extractor : FExtractor[A], regularizer : Option[Double]
     avgAcc
   }
 
+
+  
 
   def extremes(data : List[(String,HashSet[A])],xmlF : String) = {
 
